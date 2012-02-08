@@ -36,4 +36,4 @@ if __name__ == '__main__':
         # Parse source code
         parser = compiler.Parser(source)
 
-        print parser.buffer.getvalue()
+        pprint(parser._objects)

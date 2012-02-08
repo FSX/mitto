@@ -12,7 +12,11 @@ enum Numbers
   THREE
   FIVE = 89
   SIX
-  EIGHT = 98
+  EIGHT
+}
+
+enum Empty
+{
 }
 
 // Bla bla bla bla

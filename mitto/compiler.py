@@ -6,25 +6,36 @@ except ImportError:
     from StringIO import StringIO
 
 
+TYPE_ENUM = 1
+
+
 RE_ENUM = re.compile(r'''
 enum\s+
 ([a-z_][a-z0-9_]+)\s*
 \{\s*
     ((?:
-        [a-z][a-z0-9]+\s*
+        [a-z_][a-z0-9_]+\s*
         (?:=\s*[0-9]+)?\s*
     )*)
 \}
-''', re.X | re.I | re.S)
+''', re.X | re.I)
+RE_ENUM_ITEM = re.compile(r'([a-z_][a-z0-9_]+)\s*(?:=\s*([0-9]+))?\s*', re.I)
 
 
 class Parser(object):
 
     def __init__(self, source):
         self.source = source
-        self.buffer = StringIO()
+        self._objects = {}
 
         self.comment()
+        self.enum()
+
+    def _add_object(self, name, type, value):
+        self._objects[name] = {
+            'type': type,
+            'value': value
+        }
 
     def comment(self):
         """Remove multi-line and single-ling (/* */ and  //) comments from a
@@ -36,6 +47,7 @@ class Parser(object):
         C_MODE = 2 # Comment mode
         S_MODE = 3 # String mode
 
+        buffer = StringIO()
         mode = N_MODE
         lc = '' # Last character
 
@@ -55,7 +67,7 @@ class Parser(object):
                 if c == '"' or c == "'":
                     mode = S_MODE
                     lc = c
-                    self.buffer.write(c)
+                    buffer.write(c)
                 # Could this be the start of a single- or multi-line comment?
                 elif c == '/' and not lc:
                     lc = c
@@ -69,21 +81,36 @@ class Parser(object):
                     mode = C_MODE
                 # No single- or multi-line comment found so write lc and c to the buffer
                 elif lc:
-                    self.buffer.write(lc + c)
+                    buffer.write(lc + c)
                     lc = ''
                 # Nothing happened, just write to the buffer
                 else:
-                    self.buffer.write(c)
+                    buffer.write(c)
             elif mode == S_MODE:
                 # End of the string, enter normal mode
                 if c == lc:
                     mode = N_MODE
                     lc = ''
-                self.buffer.write(c)
+                buffer.write(c)
+
+        self.source = buffer.getvalue()
+        buffer.close()
 
     def enum(self):
-        # RE_ENUM.findall(content)
-        pass
+        enums = RE_ENUM.findall(self.source)
+        for name, items in enums:
+            ln = 1 # Last item value
+            value = []
+            items = RE_ENUM_ITEM.findall(items)
+            for n, v in items:
+                if not v:
+                    ln += 1
+                    v = ln
+                else:
+                    v = int(v)
+                    ln = v
+                value.append((n, v))
+            self._add_object(name, TYPE_ENUM, value)
 
     def list(self):
         pass
