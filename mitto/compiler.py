@@ -99,7 +99,7 @@ class Parser(object):
     def enum(self):
         enums = RE_ENUM.findall(self.source)
         for name, items in enums:
-            ln = 1 # Last item value
+            ln = 0 # Last item value
             value = []
             items = RE_ENUM_ITEM.findall(items)
             for n, v in items:
@@ -111,6 +111,9 @@ class Parser(object):
                     ln = v
                 value.append((n, v))
             self._add_object(name, TYPE_ENUM, value)
+
+    def const(self):
+        pass
 
     def list(self):
         pass
