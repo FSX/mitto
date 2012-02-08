@@ -92,7 +92,6 @@ pygments_style = 'fruity'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 # html_theme = 'default'
-html_theme = 'nature-mod'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -100,7 +99,7 @@ html_theme = 'nature-mod'
 #html_theme_options = {}
 
 # Add any paths that contain custom themes here, relative to this directory.
-html_theme_path = ['_themes']
+#html_theme_path = []
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -132,13 +131,7 @@ html_static_path = ['_static']
 #html_use_smartypants = True
 
 # Custom sidebar templates, maps document names to template names.
-html_sidebars = {'**': [
-    'logo.html',
-    'globaltoc.html',
-    'relations.html',
-    'sourcelink.html',
-    'searchbox.html'
-]}
+#html_sidebars = {}
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
@@ -221,3 +214,20 @@ man_pages = [
     ('index', 'mitto', u'Mitto Documentation',
      [u'Frank Smit'], 1)
 ]
+
+import os
+on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+if on_rtd:
+    html_theme = 'default'
+else:
+    html_theme = 'nature-mod'
+    sys.path.append(os.path.abspath('_themes'))
+    html_theme_path = ['_themes']
+
+    html_sidebars = {'**': [
+        'logo.html',
+        'localtoc.html',
+        'relations.html',
+        'sourcelink.html',
+        'searchbox.html'
+    ]}

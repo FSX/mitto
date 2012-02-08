@@ -1,3 +1,6 @@
+// This sets the output directory or module
+namespace py MittoTest
+
 const i16 oneTwoThree = 123;
 
 /* This is a test file */
