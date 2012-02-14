@@ -1,10 +1,13 @@
 import re
+from pprint import pprint
 
 try:
     from cStringIO import StringIO
 except ImportError:
     from StringIO import StringIO
 
+
+RE_COMMENT_TOKEN = re.compile('(?:/[*/]|#|["\']|\*/|\n)', re.S)
 
 IDENTIFIER = '[a-zA-Z_][a-zA-Z0-9_.]*'
 INT_CONSTANT = '[-+]?[0-9]+'
@@ -31,63 +34,52 @@ class Parser(object):
         }
 
     def comment(self):
-        """Remove multi-line and single-ling (/* */ and  //) comments from a
-        Thrift file. Strings are ignored.
-
-        :param content: the source code that needs to be stripped from comments.
+        """Remove multi-line and single-line (/* */, // and #) comments from a
+        Thrift file. Comment patterns in strings are ignored.
         """
-        N_MODE = 1 # Normal mode
-        C_MODE = 2 # Comment mode
-        S_MODE = 3 # String mode
+        N_MODE = 1 # Code
+        C_MODE = 2 # Comment
+        S_MODE = 3 # String
 
-        buffer = StringIO()
+        position = 0
         mode = N_MODE
-        lc = '' # Last character
+        prev_position = 0
+        prev_token = ''
+        comments = []
 
-        for i, c in enumerate(self.source):
-            if mode == C_MODE:
-                # Could this be the end of a multi-line comment?
-                if c == '*':
-                    lc = c
-                # The end of a single- or multi-line comment, enter normal mode
-                elif (lc == '*' and c == '/') or (lc == '/' and c == '\n'):
-                    mode = N_MODE
-                    lc = ''
-            elif mode == N_MODE:
-                # The start of a string (" or '), enter string mode. Store the opening
-                # character of the string in lc so it can be used to detect the end
-                # of the string correctly.
-                if c == '"' or c == "'":
+        while True:
+            match = RE_COMMENT_TOKEN.search(self.source[position:])
+            if not match:
+                break
+
+            token = match.group(0)
+            position += match.start() + len(token)
+
+            if mode == N_MODE:
+                if token == '/*':
+                    mode = C_MODE
+                    prev_position = position
+                elif token in ('//', '#'):
+                    mode = C_MODE
+                    prev_position = position
+                    prev_token = token
+                elif token in ('"', "'"):
                     mode = S_MODE
-                    lc = c
-                    buffer.write(c)
-                # Could this be the start of a single- or multi-line comment?
-                elif c == '/' and not lc:
-                    lc = c
-                # Start of a multi-line comment, enter comment mode
-                elif lc and c == '*':
-                    mode = C_MODE
-                    lc = ''
-                # Start of a single-line comment, enter comment mode. The lc is not
-                # cleared, because it is used to detect the end of the comment.
-                elif lc and c == '/':
-                    mode = C_MODE
-                # No single- or multi-line comment found so write lc and c to the buffer
-                elif lc:
-                    buffer.write(lc + c)
-                    lc = ''
-                # Nothing happened, just write to the buffer
-                else:
-                    buffer.write(c)
-            elif mode == S_MODE:
-                # End of the string, enter normal mode
-                if c == lc:
+            elif mode == C_MODE:
+                if token == '*/':
                     mode = N_MODE
-                    lc = ''
-                buffer.write(c)
+                    comments.append(self.source[prev_position-2:position])
+                elif token == '\n' and prev_token in ('//', '#'):
+                    mode = N_MODE
+                    prev_token = ''
+                    comments.append(self.source[prev_position-2:position-1])
+            elif mode == S_MODE:
+                if token == prev_token:
+                    mode = N_MODE
 
-        self.source = buffer.getvalue()
-        buffer.close()
+        for comment in comments:
+            self.source = self.source.replace(comment, '')
+
 
     def enum(self):
         enums = RE_ENUM.findall(self.source)

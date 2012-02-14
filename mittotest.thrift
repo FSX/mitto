@@ -17,6 +17,8 @@ enum Numbers
   EIGHT
 }
 
+# A unix-style comment
+
 enum Empty
 {
 }
@@ -25,6 +27,12 @@ struct Insanity
 {
   1: map<Numbers, i64> userMap
 }
+
+/* enum Invisible
+{
+  BLEEP
+  BLOOP
+} */
 
 // Bla bla bla bla
 
