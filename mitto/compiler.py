@@ -6,20 +6,13 @@ except ImportError:
     from StringIO import StringIO
 
 
-TYPE_ENUM = 1
+IDENTIFIER = '[a-zA-Z_][a-zA-Z0-9_.]*'
+INT_CONSTANT = '[-+]?[0-9]+'
 
-
-RE_ENUM = re.compile(r'''
-enum\s+
-([a-z_][a-z0-9_]+)\s*
-\{\s*
-    ((?:
-        [a-z_][a-z0-9_]+\s*
-        (?:=\s*[0-9]+)?\s*
-    )*)
-\}
-''', re.X | re.I)
-RE_ENUM_ITEM = re.compile(r'([a-z_][a-z0-9_]+)\s*(?:=\s*([0-9]+))?\s*', re.I)
+# 'enum' Identifier '{' (Identifier ('=' IntConstant)? ListSeparator?)* '}'
+RE_ENUM = re.compile(r'enum\s+(%s)\s*\{\s*(.*?)\}' % IDENTIFIER, re.S)
+RE_ENUM_ITEM = re.compile(r'(%s)\s*(?:=\s*(%s))?\s*' % (
+    IDENTIFIER, INT_CONSTANT))
 
 
 class Parser(object):
@@ -110,7 +103,7 @@ class Parser(object):
                     v = int(v)
                     ln = v
                 value.append((n, v))
-            self._add_object(name, TYPE_ENUM, value)
+            self._add_object(name, 'enum', value)
 
     def const(self):
         pass
