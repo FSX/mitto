@@ -9,7 +9,7 @@ except ImportError:
 
 def doc_string_comment(lexer, token):
     lines = token[3:-2].strip().splitlines()
-    token = '\n'.join([re.sub('^\s*\*\s*', '', line) for line in lines])
+    token = '\n'.join([re.sub(r'^\s*\*\s*', '', line) for line in lines])
     return token
 
 
@@ -30,10 +30,7 @@ def string(lexer, token):
 
 
 _RULES = (
-    # An identifier with only an * is also accepted to match a namespace scope.
-    # The parser should handle * in type names (i.e. throw an error).
-    ('IDENTIFIER',           r'(?:\*|[a-zA-Z_][a-zA-Z0-9_.]*)'),
-    ('ST_IDENTIFIER',        r'(?:\*|[a-zA-Z_][a-zA-Z0-9_.-]*)'),
+    ('WORD',                 r'[a-zA-Z_][a-zA-Z0-9_.-]*'),
 
     ('INT_CONSTANT',         r'(?:\+|-)?[0-9]+'),
     ('DOUBLE_CONSTANT',      r'(?:\+|-)?[0-9.]+(?:[Ee][0-9]+)?'),
@@ -49,9 +46,6 @@ _RULES = (
     ('STRING_DQ',           (r'".*?"', string)),
     ('STRING_SQ',           (r"'.*?'", string)),
 
-    # The parser should ignore the whitespace, it's not important
-    ('WHITESPACE',           r'\s+'),
-
     ('CURLY_BRACKET_OPEN',   r'\{'),
     ('CURLY_BRACKET_CLOSE',  r'\}'),
     ('POINTY_BRACKET_OPEN',  r'<'),
@@ -60,7 +54,11 @@ _RULES = (
     ('ROUND_BRACKET_CLOSE',  r'\)'),
     ('SQUARE_BRACKET_OPEN',  r'\['),
     ('SQUARE_BRACKET_CLOSE', r'\]'),
+    ('STAR',                 r'\*'),
     ('ASSIGNMENT',           r'='),
+
+    # The parser should ignore the whitespace, it's not important
+    ('WHITESPACE',           r'\s+'),
 )
 
 
