@@ -34,6 +34,6 @@ if __name__ == '__main__':
             source = fd.read()
 
         # Parse source code
-        parser = compiler.Parser(source)
+        c = compiler.Compiler(source)
 
-        pprint(parser._objects)
+        # pprint(c._objects)

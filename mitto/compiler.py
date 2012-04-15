@@ -7,104 +7,123 @@ except ImportError:
     from StringIO import StringIO
 
 
-RE_COMMENT_TOKEN = re.compile('(?:/[*/]|#|["\']|\*/|\n)', re.S)
+def doc_string_comment(lexer, token):
+    lines = token[3:-2].strip().splitlines()
+    token = '\n'.join([re.sub('^\s*\*\s*', '', line) for line in lines])
+    return token
 
-IDENTIFIER = '[a-zA-Z_][a-zA-Z0-9_.]*'
-INT_CONSTANT = '[-+]?[0-9]+'
 
-# 'enum' Identifier '{' (Identifier ('=' IntConstant)? ListSeparator?)* '}'
-RE_ENUM = re.compile(r'enum\s+(%s)\s*\{\s*(.*?)\}' % IDENTIFIER, re.S)
-RE_ENUM_ITEM = re.compile(r'(%s)\s*(?:=\s*(%s))?\s*' % (
-    IDENTIFIER, INT_CONSTANT))
+def c_comment(lexer, token):
+    return token[2:-2].strip()
+
+
+def cpp_comment(lexer, token):
+    return token[2:].strip()
+
+
+def unix_comment(lexer, token):
+    return token[1:].strip()
+
+
+_RULES = (
+    # An identifier with only an * is also accepted to match a namespace scope.
+    # The parser should handle * in type names (i.e. throw an error).
+    ('IDENTIFIER',           r'(?:\*|[a-zA-Z_][a-zA-Z0-9_.]*)'),
+
+    ('INT_CONSTANT',         r'(?:\+|-)?[0-9]+'),
+    ('DOC_STRING_COMMENT',  (r'/\*\*(?:.|\n)*?\*/', doc_string_comment)),
+    ('C_COMMENT',           (r'/\*(?:.|\n)*?\*/', c_comment)),
+    ('CPP_COMMENT',         (r'//.*\n', cpp_comment)),
+    ('UNIX_COMMENT',        (r'#.*\n', unix_comment)),
+    ('LIST_SEPARATOR',       r'(?:,|;)'),
+
+    # The parser should ignore the whitespace, it's not important
+    ('WHITESPACE',           r'\s+'),
+
+    ('CURLY_BRACE_OPEN',     r'\{'),
+    ('CURLY_BRACE_CLOSE',    r'\}'),
+    ('ASSIGNMENT',           r'='),
+)
+
+
+class Token(object):
+    def __init__(self, type, value, line_nr):
+        self.type = type
+        self.value = value
+        self.line_nr = line_nr
+
+    def __str__(self):
+        return "Token(%s, %r, %d)" % (self.type,
+            self.value, self.line_nr)
+
+    def __repr__(self):
+        return str(self)
+
+
+class UnknownTokenError(Exception):
+    def __init__(self, token, line_nr):
+        self.token = token
+        self.line_nr = line_nr
+
+    def __str__(self):
+        return "Line #%s, Found token: %s" % (self.line_nr, self.token)
+
+
+class Lexer(object):
+    def __init__(self, rules, source):
+        self._source = source.strip()
+        self._callbacks = {}
+        self._position = 0
+        self._line_nr = 1
+
+        parts = []
+        for name, rule in rules:
+            if not isinstance(rule, str):
+                rule, callback = rule
+                self._callbacks[name] = callback
+            parts.append('(?P<%s>%s)' % (name, rule))
+
+        self.regex = re.compile('|'.join(parts))
+
+    def scan(self):
+        token = self._scan_next()
+        while token is not None:
+            yield token
+            token = self._scan_next()
+
+    def _scan_next(self):
+        if self._position >= len(self._source):
+            return None
+
+        match = self.regex.match(self._source, self._position)
+        if match is None:
+            raise UnknownTokenError(self._source[self._position], self._line_nr)
+
+        value = match.group(match.lastgroup)
+        add_line_count = value.count('\n')
+        if match.lastgroup in self._callbacks:
+            value = self._callbacks[match.lastgroup](self, value)
+
+        token = Token(match.lastgroup, value, self._line_nr)
+        self._line_nr += add_line_count
+        self._position = match.end()
+
+        return token
 
 
 class Parser(object):
+    def __init__(self, tokens):
+        pass
 
+
+class Generator(object):
+    def __init__(self, tree):
+        pass
+
+
+class Compiler(object):
     def __init__(self, source):
-        self.source = source
-        self._objects = {}
+        lexer = Lexer(_RULES, source)
 
-        self.comment()
-        self.enum()
-
-    def _add_object(self, name, type, value):
-        self._objects[name] = {
-            'type': type,
-            'value': value
-        }
-
-    def comment(self):
-        """Remove multi-line and single-line (/* */, // and #) comments from a
-        Thrift file. Comment patterns in strings are ignored.
-        """
-        N_MODE = 1 # Code
-        C_MODE = 2 # Comment
-        S_MODE = 3 # String
-
-        position = 0
-        mode = N_MODE
-        prev_position = 0
-        prev_token = ''
-        comments = []
-
-        while True:
-            match = RE_COMMENT_TOKEN.search(self.source[position:])
-            if not match:
-                break
-
-            token = match.group(0)
-            position += match.start() + len(token)
-
-            if mode == N_MODE:
-                if token == '/*':
-                    mode = C_MODE
-                    prev_position = position
-                elif token in ('//', '#'):
-                    mode = C_MODE
-                    prev_position = position
-                    prev_token = token
-                elif token in ('"', "'"):
-                    mode = S_MODE
-            elif mode == C_MODE:
-                if token == '*/':
-                    mode = N_MODE
-                    comments.append(self.source[prev_position-2:position])
-                elif token == '\n' and prev_token in ('//', '#'):
-                    mode = N_MODE
-                    prev_token = ''
-                    comments.append(self.source[prev_position-2:position-1])
-            elif mode == S_MODE:
-                if token == prev_token:
-                    mode = N_MODE
-
-        for comment in comments:
-            self.source = self.source.replace(comment, '')
-
-
-    def enum(self):
-        enums = RE_ENUM.findall(self.source)
-        for name, items in enums:
-            ln = 0 # Last item value
-            value = []
-            items = RE_ENUM_ITEM.findall(items)
-            for n, v in items:
-                if not v:
-                    ln += 1
-                    v = ln
-                else:
-                    v = int(v)
-                    ln = v
-                value.append((n, v))
-            self._add_object(name, 'enum', value)
-
-    def const(self):
-        pass
-
-    def list(self):
-        pass
-
-    def set(self):
-        pass
-
-    def map(self):
-        pass
+        for v in lexer.scan():
+            print v
