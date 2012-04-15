@@ -25,23 +25,41 @@ def unix_comment(lexer, token):
     return token[1:].strip()
 
 
+def string(lexer, token):
+    return token[1:-1].strip()
+
+
 _RULES = (
     # An identifier with only an * is also accepted to match a namespace scope.
     # The parser should handle * in type names (i.e. throw an error).
     ('IDENTIFIER',           r'(?:\*|[a-zA-Z_][a-zA-Z0-9_.]*)'),
+    ('ST_IDENTIFIER',        r'(?:\*|[a-zA-Z_][a-zA-Z0-9_.-]*)'),
 
     ('INT_CONSTANT',         r'(?:\+|-)?[0-9]+'),
+    ('DOUBLE_CONSTANT',      r'(?:\+|-)?[0-9.]+(?:[Ee][0-9]+)?'),
+
     ('DOC_STRING_COMMENT',  (r'/\*\*(?:.|\n)*?\*/', doc_string_comment)),
     ('C_COMMENT',           (r'/\*(?:.|\n)*?\*/', c_comment)),
     ('CPP_COMMENT',         (r'//.*\n', cpp_comment)),
     ('UNIX_COMMENT',        (r'#.*\n', unix_comment)),
+
     ('LIST_SEPARATOR',       r'(?:,|;)'),
+    ('COLON',                r':'),
+
+    ('STRING_DQ',           (r'".*?"', string)),
+    ('STRING_SQ',           (r"'.*?'", string)),
 
     # The parser should ignore the whitespace, it's not important
     ('WHITESPACE',           r'\s+'),
 
-    ('CURLY_BRACE_OPEN',     r'\{'),
-    ('CURLY_BRACE_CLOSE',    r'\}'),
+    ('CURLY_BRACKET_OPEN',   r'\{'),
+    ('CURLY_BRACKET_CLOSE',  r'\}'),
+    ('POINTY_BRACKET_OPEN',  r'<'),
+    ('POINTY_BRACKET_CLOSE', r'>'),
+    ('ROUND_BRACKET_OPEN',   r'\('),
+    ('ROUND_BRACKET_CLOSE',  r'\)'),
+    ('SQUARE_BRACKET_OPEN',  r'\['),
+    ('SQUARE_BRACKET_CLOSE', r'\]'),
     ('ASSIGNMENT',           r'='),
 )
 
